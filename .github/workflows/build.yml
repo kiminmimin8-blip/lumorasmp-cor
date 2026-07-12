@@ -1,0 +1,41 @@
+name: Build Plugin
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Extract project zip (kalau ada)
+        run: |
+          ZIP_FILE=$(find . -maxdepth 1 -name "*.zip" | head -n 1)
+          if [ -n "$ZIP_FILE" ]; then
+            echo "Extracting $ZIP_FILE"
+            unzip -o "$ZIP_FILE" -d extracted
+            # Cari folder yang isinya pom.xml, pindahin isinya ke root
+            PROJECT_DIR=$(find extracted -maxdepth 3 -name "pom.xml" -exec dirname {} \; | head -n 1)
+            echo "Project dir: $PROJECT_DIR"
+            cp -r "$PROJECT_DIR"/. .
+          fi
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'maven'
+
+      - name: Build with Maven
+        run: mvn -B clean package
+
+      - name: Upload jar artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lumorasmp-core-jar
+          path: target/*.jar
